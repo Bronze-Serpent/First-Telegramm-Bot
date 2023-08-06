@@ -1,8 +1,8 @@
-package com.barabanov.tgbot;
+package com.barabanov.tgbot.handler;
 
 import java.util.Arrays;
 
-public enum ButtonCallBack
+enum ButtonCallBack
 {
     I_WANT_POLL("I want poll"), SONG("Song");
 
@@ -15,13 +15,13 @@ public enum ButtonCallBack
     }
 
 
-    public static ButtonCallBack fromString(String callBackAsTxt)
+    static ButtonCallBack fromString(String callBackAsTxt)
     {
         return ButtonCallBack.valueOf(String.join("_", callBackAsTxt.split(" ")).toUpperCase());
     }
 
 
-    public static boolean isItCallBack(String callBackAsTxt)
+    static boolean isItCallBack(String callBackAsTxt)
     {
         for (String callBack : Arrays.stream(ButtonCallBack.values()).map(ButtonCallBack::getCallBackSyntax).toList())
             if (callBackAsTxt.equals(callBack))
@@ -30,5 +30,5 @@ public enum ButtonCallBack
         return false;
     }
 
-    private String getCallBackSyntax() { return callBackSyntax; }
+    public String getCallBackSyntax() { return callBackSyntax; }
 }

@@ -1,4 +1,4 @@
-package com.barabanov.tgbot;
+package com.barabanov.tgbot.handler;
 
 
 import org.telegram.telegrambots.meta.api.methods.botapimethods.BotApiMethodMessage;

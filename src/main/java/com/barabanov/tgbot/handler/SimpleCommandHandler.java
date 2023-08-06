@@ -1,6 +1,7 @@
-package com.barabanov.tgbot;
+package com.barabanov.tgbot.handler;
 
 
+import com.barabanov.tgbot.utils.MsgPropUtil;
 import org.telegram.telegrambots.meta.api.methods.botapimethods.BotApiMethodMessage;
 import org.telegram.telegrambots.meta.api.methods.polls.SendPoll;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -18,8 +19,14 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 
-public class TextCommandHandler implements CommandHandler
+public class SimpleCommandHandler implements CommandHandler
 {
+
+    private static final String START_MSG = "start";
+    private static final String HELLO_MSG = "hello";
+    private static final String NO_QUOTE= "quote.no";
+    private static final String addFuncMsg = "Additional functionality";
+
 
     public BotApiMethodMessage handleUpdate(Update update)
     {
@@ -44,7 +51,7 @@ public class TextCommandHandler implements CommandHandler
         Message replyMsg = userMsg.getReplyToMessage();
 
         if (replyMsg.hasText())
-            if (replyMsg.getText().equals("Обещанная дополнительная функциональность"))
+            if (replyMsg.getText().equals(addFuncMsg))
                 return ButtonReply(userMsg);
 
         return new SendMessage();
@@ -90,32 +97,24 @@ public class TextCommandHandler implements CommandHandler
     }
 
 
-    private BotApiMethodMessage processTheCmd(Command cmd, String text, String chatId)
+    private BotApiMethodMessage processTheCmd(Command command, String text, String chatId)
     {
-        switch (cmd)
+        switch (command)
         {
             case START:
-                return new SendMessage(String.valueOf(chatId), "Приветствую. Я телеграмм бот. Мои способности весьма ограничены." +
-                        " Чтобы посмотреть описание того, что я умею выполните команду /help.");
+                return new SendMessage(String.valueOf(chatId), MsgPropUtil.get(START_MSG));
 
             case HELP:
-                return new SendMessage(chatId, """
-                        Есть следующие команды:
-                        /hello - поздоровается с вами
-                        /message - напишет текст, который вы напишите после команды
-                        /more_func - выдаст вам ещё больше функций, но уже в виде кнопочек :)
-                        /reflections - даст вам над чем можно будет подумать
-                        /smile - улыбнётся вам
-                        /start - выводит приветствие, рассказывает о себе и говорит о help
-                        /help - описывает какие есть команды""");
+                return new SendMessage(chatId, "There are following commands:\n" +
+                        Arrays.stream(Command.values())
+                        .map(cmd -> cmd.getCmdSyntax() + " - " + cmd.getDescription()) + "\n");
 
             case SMILE:
                 return new SendMessage(chatId,
-                            List.of(":)", ":]", ":3", ":<)", "/:-]").get(ThreadLocalRandom.current().nextInt(5)));
+                        MsgPropUtil.getSmiles().get(ThreadLocalRandom.current().nextInt(5)));
 
             case HELLO:
-                return new SendMessage(chatId, "Не, серьёзно? Ты нажал команду чтобы я написал тебе привет?" +
-                            " Совсем чердак потёк там? Или может тебе совсем заняться нечем? Ну привет, бездельник.");
+                return new SendMessage(chatId, MsgPropUtil.get(HELLO_MSG));
 
             case MESSAGE:
                 return new SendMessage(chatId, text);
@@ -123,15 +122,15 @@ public class TextCommandHandler implements CommandHandler
             case REFLECTIONS:
             {
                 InlineKeyboardButton putBtn = new InlineKeyboardButton();
-                putBtn.setText("Я хочу цитату, пожалуйста");
-                putBtn.setCallbackData("Need a quote");
+                putBtn.setText("I want a quote, please");
+                putBtn.setCallbackData(QuoteCallBack.NEED_A_QUOTE.getCallBackSyntax());
 
                 InlineKeyboardButton getBtn = new InlineKeyboardButton();
-                getBtn.setText("Я не хочу цитат!");
-                getBtn.setCallbackData("No quote needed");
+                getBtn.setText("I don't want a quote");
+                getBtn.setCallbackData(QuoteCallBack.NO_QUOTE_NEEDED.getCallBackSyntax());
 
                 InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup(List.of(List.of(putBtn), List.of(getBtn)));
-                SendMessage sendMessage = new SendMessage(chatId, "Чего тебе ещё собака надо?");
+                SendMessage sendMessage = new SendMessage(chatId, "What else do you need?");
                 sendMessage.setReplyMarkup(keyboardMarkup);
 
                 return sendMessage;
@@ -139,8 +138,8 @@ public class TextCommandHandler implements CommandHandler
 
             case MORE_FUNC:
             {
-                KeyboardButton pollBtn = new KeyboardButton("I want poll");
-                KeyboardButton songBtn = new KeyboardButton("Song");
+                KeyboardButton pollBtn = new KeyboardButton(ButtonCallBack.I_WANT_POLL.getCallBackSyntax());
+                KeyboardButton songBtn = new KeyboardButton(ButtonCallBack.SONG.getCallBackSyntax());
                 KeyboardButton whereIAmBtn = new KeyboardButton("Where I am");
                 whereIAmBtn.setRequestLocation(true);
 
@@ -154,7 +153,7 @@ public class TextCommandHandler implements CommandHandler
                 keyboardMarkup.setSelective(true);
                 keyboardMarkup.setKeyboard(List.of(fstBtnRow, scdBtnRow));
 
-                SendMessage buttonMsg = new SendMessage(chatId, "Обещанная дополнительная функциональность");
+                SendMessage buttonMsg = new SendMessage(chatId, addFuncMsg);
                 buttonMsg.setReplyMarkup(keyboardMarkup);
 
                 return buttonMsg;
@@ -172,7 +171,7 @@ public class TextCommandHandler implements CommandHandler
         {
             Location userLocation = userMsg.getLocation();
             SendMessage sendMessage = new SendMessage(userMsg.getChatId().toString(), String.format(
-                    "Ты находишься здесь, потеряшка:\nlongitude = %f\nlatitude = %f", userLocation.getLongitude().floatValue(),
+                    "You are here, lost:\nlongitude = %f\nlatitude = %f", userLocation.getLongitude().floatValue(),
                     userLocation.getLatitude().floatValue()));
             sendMessage.setReplyToMessageId(userMsg.getMessageId());
 
@@ -194,10 +193,11 @@ public class TextCommandHandler implements CommandHandler
 
             case I_WANT_POLL:
             {
-                SendPoll sendPoll = new SendPoll(chatId, "Функциональность бота устраивает?",
-                        List.of("Абсолютно да", "Полностью да", "Он превосходен", "Лучший собеседник, что у меня когда-либо был"));
+                SendPoll sendPoll = new SendPoll(chatId, "Are you satisfied with the functionality of the bot?",
+                        List.of("Absolutely yes", "Completely yes", "He is excellent", "The best interlocutor I have ever had"));
                 sendPoll.setIsAnonymous(true);
-                sendPoll.setType("regular");
+                sendPoll.setAllowMultipleAnswers(true);
+                sendPoll.setType("quiz");
                 sendPoll.setCorrectOptionId(0);
 
                 return sendPoll;
@@ -215,24 +215,11 @@ public class TextCommandHandler implements CommandHandler
         {
             case NEED_A_QUOTE:
             {
-                String quote = List.of("""
-                                        Я выделяю три типа людей:
-                                        - Говно — плывут по течению и по пути воняют и ищут причину своих неудач во всем, кроме себя, и при этом не пытаются изменить ничего.
-                                        - Бревно — плывут тихо по течению и их все устраивает, им не хватает смелости плыть против или хотя бы вонять, как говно.
-                                        - Человек разумный — плывет на катере, захотел – повернул, захотел остановился — делает так, как нужно ему, объезжая или проезжая по говну и бревнам, не замечая их ничтожности и вони.
-                                        """,
-                                "Превосходство — это когда есть на что насрать, и есть чем.",
-                                "Многие жалуются на свою внешность, но на мозги не жалуется никто.",
-                                "Если ты думаешь, что мой создатель идиот, продолжай думать. Похоже ты на верном пути.",
-                                """
-                                Когда кажется, что весь мир настроен против тебя - помни, что самолёт взлетает против ветра.
-
-                                 А ещё помни, что не стоит писать против ветра.""")
-                        .get(ThreadLocalRandom.current().nextInt(5));
+                String quote = MsgPropUtil.getQuotes().get(ThreadLocalRandom.current().nextInt(5));
                 return new SendMessage(chatId, quote);
             }
             case NO_QUOTE_NEEDED:
-                return new SendMessage(chatId, "Ну и чё ты на кнопку нажал раз не хочешь? Сиди и не тыкай тогда. Тоже мне, умник.");
+                return new SendMessage(chatId, MsgPropUtil.get(NO_QUOTE));
         }
 
         //unreachable line of code
